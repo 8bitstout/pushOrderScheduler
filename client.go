@@ -1,7 +1,10 @@
-package tcp
+package orderPushScheduler
 
 import (
-	"bytes"
+	"fmt"
+	pb "github.com/8bitstout/orderPushScheduler/proto"
+	"github.com/8bitstout/orderPushScheduler/push2device"
+	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	"log"
 	"os"
@@ -28,20 +31,22 @@ var (
 )
 
 type Client struct {
-	Hub      *Hub
-	conn     *websocket.Conn
-	send     chan []byte
-	logInfo  *log.Logger
-	logError *log.Logger
+	Hub         *Hub
+	conn        *websocket.Conn
+	send        chan []byte
+	logInfo     *log.Logger
+	logError    *log.Logger
+	push2device *push2device.Push2Device
 }
 
 func MakeClient(h *Hub, c *websocket.Conn) *Client {
 	return &Client{
-		Hub:      h,
-		conn:     c,
-		send:     make(chan []byte, 256),
-		logInfo:  log.New(os.Stdout, "INFO:Client:\t", log.Ldate|log.Ltime),
-		logError: log.New(os.Stdout, "ERROR:Client:\t", log.Ldate|log.Ltime),
+		Hub:         h,
+		conn:        c,
+		send:        make(chan []byte, 256),
+		logInfo:     log.New(os.Stdout, "INFO:Client:\t", log.Ldate|log.Ltime),
+		logError:    log.New(os.Stdout, "ERROR:Client:\t", log.Ldate|log.Ltime),
+		push2device: &push2device.Push2Device{},
 	}
 }
 
@@ -62,11 +67,20 @@ func (c *Client) ReadPump() {
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+		//message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+		fmt.Println(message)
+		order := &pb.Order{}
+		err = proto.Unmarshal(message, order)
+		if err != nil {
+			c.logError.Println("ReadPump:Unmarshal:", err)
+		}
+		fmt.Println("Received order ", order.Id, "created at", order.CreatedAt)
+		c.logInfo.Println(order.String())
 		c.Hub.Broadcast(message)
 	}
 }
 
+// Write To Push2Device
 func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -82,11 +96,19 @@ func (c *Client) WritePump() {
 				return
 			}
 
-			w, err := c.conn.NextWriter(websocket.TextMessage)
+			w, err := c.conn.NextWriter(websocket.BinaryMessage)
 			if err != nil {
 				return
 			}
-			w.Write(message)
+			w.Write(message) // write if ws existed on other end
+
+			// expect Order protobuf
+			order := pb.Order{}
+			err = proto.Unmarshal(message, &order)
+			if err != nil {
+				c.logError.Println("Error unmarshalling protobuf:", err)
+			}
+			c.push2device.CreateOrderPush(&order)
 
 			// Add queued message to the current websocket message
 			n := len(c.send)

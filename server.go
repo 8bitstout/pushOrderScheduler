@@ -1,4 +1,4 @@
-package tcp
+package orderPushScheduler
 
 import (
 	"github.com/gorilla/websocket"
@@ -21,7 +21,7 @@ type Server struct {
 	logInfo  *log.Logger
 	logError *log.Logger
 	upgrader *websocket.Upgrader
-	hub      *Hub
+	Hub      *Hub
 }
 
 func MakeServer(port string) *Server {
@@ -30,12 +30,12 @@ func MakeServer(port string) *Server {
 		logInfo:  log.New(os.Stdout, "INFO:Server:", log.Ldate|log.Ltime),
 		logError: log.New(os.Stdout, "ERROR:Server:", log.Ldate|log.Ltime),
 		upgrader: &Upgrader,
-		hub:      MakeHub(),
+		Hub:      MakeHub(),
 	}
 }
 
 func (s *Server) Run() {
-	go s.hub.Run()
+	go s.Hub.Run()
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s.serveWs(w, r)
 	})
@@ -51,7 +51,7 @@ func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 		s.logError.Println("serveWs: ", err)
 		return
 	}
-	client := MakeClient(s.hub, conn)
+	client := MakeClient(s.Hub, conn)
 	client.Hub.Register(client)
 	go client.WritePump()
 	go client.ReadPump()

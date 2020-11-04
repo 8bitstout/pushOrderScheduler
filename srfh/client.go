@@ -2,6 +2,9 @@ package srfh
 
 import (
 	"fmt"
+	"github.com/8bitstout/orderPushScheduler"
+	pb "github.com/8bitstout/orderPushScheduler/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/url"
@@ -36,14 +39,30 @@ func (c *Client) ListenForMessages() {
 			if msgType == websocket.TextMessage {
 				fmt.Println(string(msg))
 			}
+			if msgType == websocket.BinaryMessage {
+				order := &pb.Order{}
+				proto.Unmarshal(msg, order)
+				fmt.Println("Received order ", order.Id, "created at", order.CreatedAt)
+			}
 		}
 	}()
 }
 
-func (c *Client) WriteMessage(m string) {
+func (c *Client) WriteMessage(m []byte) {
 	fmt.Println("Writing message to:", c.conn.RemoteAddr().String())
-	err := c.conn.WriteMessage(websocket.TextMessage, []byte(m))
+	err := c.conn.WriteMessage(websocket.BinaryMessage, m)
 	if err != nil {
 		log.Println(err)
 	}
+}
+
+func (c *Client) SendNewOrder() {
+	order := orderPushScheduler.MakeOrder(10)
+	fmt.Println("New Order: ", order.String())
+	message, err := proto.Marshal(order)
+	if err != nil {
+		log.Panic(err)
+	}
+	fmt.Println(message)
+	c.WriteMessage(message)
 }

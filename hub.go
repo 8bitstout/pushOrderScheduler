@@ -1,4 +1,4 @@
-package tcp
+package orderPushScheduler
 
 import (
 	"log"
@@ -51,6 +51,7 @@ func (h *Hub) Run() {
 			}
 		case message := <-h.broadcast:
 			for client := range h.clients {
+				h.logInfo.Println("Sending message to:", client.conn.RemoteAddr().String())
 				select {
 				case client.send <- message:
 				default:
