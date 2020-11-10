@@ -9,7 +9,7 @@ import (
 
 const (
 	DEFAULT_ADDRESS = "localhost"
-	DEFAULT_PORT    = "8080"
+	DEFAULT_PORT    = "50051"
 )
 
 func main() {
@@ -19,15 +19,15 @@ func main() {
 	switch command {
 	case "server":
 		{
-			s := orderPushScheduler.MakeScheduler(DEFAULT_PORT)
-			fmt.Println("Server running at", DEFAULT_ADDRESS+":"+DEFAULT_PORT)
+			s := orderPushScheduler.NewScheduler()
+			fmt.Println("Scheduler running at", DEFAULT_ADDRESS+":"+DEFAULT_PORT)
 			s.Run()
 		}
 	case "client":
 		{
-			url := fmt.Sprint("ws://", DEFAULT_ADDRESS, ":", DEFAULT_PORT)
+			url := fmt.Sprint(DEFAULT_ADDRESS, ":", DEFAULT_PORT)
 			c := srfh.MakeClient(url)
-			c.SendNewOrder()
+			c.Schedule()
 		}
 	default:
 		fmt.Println("Command not recognized")

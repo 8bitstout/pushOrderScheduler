@@ -1,0 +1,21 @@
+syntax = "proto3";
+package orderPushScheduler;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "order/order";
+
+service ScheduleOrderPush {
+    rpc schedulePushNotification(Order) returns (Result);
+}
+
+message Order {
+  string id = 1;
+  bool isValid = 2;
+  google.protobuf.Timestamp createdAt = 3;
+}
+
+message Result {
+  bool success = 1;
+  string response = 2;
+}

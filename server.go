@@ -1,58 +1,56 @@
 package orderPushScheduler
 
 import (
-	"github.com/gorilla/websocket"
+	"context"
+	pb "github.com/8bitstout/orderPushScheduler/order"
+	"github.com/8bitstout/orderPushScheduler/push2device"
 	"log"
-	"net/http"
+	"net"
 	"os"
+
+	"google.golang.org/grpc"
 )
 
 const (
-	DEFAULT_BUFFER_SIZE = 1024
+	port = ":50051"
 )
 
-var Upgrader = websocket.Upgrader{
-	ReadBufferSize:  DEFAULT_BUFFER_SIZE,
-	WriteBufferSize: DEFAULT_BUFFER_SIZE,
-}
-
-type Server struct {
-	port     string
+type Scheduler struct {
+	pb.UnimplementedScheduleOrderPushServer
+	orderMap map[string]*pb.Order
 	logInfo  *log.Logger
 	logError *log.Logger
-	upgrader *websocket.Upgrader
-	Hub      *Hub
 }
 
-func MakeServer(port string) *Server {
-	return &Server{
-		port:     port,
-		logInfo:  log.New(os.Stdout, "INFO:Server:", log.Ldate|log.Ltime),
-		logError: log.New(os.Stdout, "ERROR:Server:", log.Ldate|log.Ltime),
-		upgrader: &Upgrader,
-		Hub:      MakeHub(),
-	}
-}
-
-func (s *Server) Run() {
-	go s.Hub.Run()
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		s.serveWs(w, r)
-	})
-	err := http.ListenAndServe(":"+s.port, nil)
+func (s *Scheduler) SchedulePushNotification(ctx context.Context, in *pb.Order) (*pb.Result, error) {
+	s.logInfo.Println("Scheduling New Order:", in.GetId())
+	c := push2device.MakePush2DeviceClient()
+	err := c.CreatePushNotification(in.GetId())
 	if err != nil {
-		s.logError.Fatal("ListenAndServe: ", err)
+		return &pb.Result{Success: false, Response: "Failed to register push notification"}, err
+	}
+
+	return &pb.Result{Success: true, Response: "Push notification scheduled for Order " + in.Id}, nil
+}
+
+func (s *Scheduler) Run() {
+	lis, err := net.Listen("tcp", port)
+	if err != nil {
+		log.Fatalf("|failed to listen: %v", err)
+	}
+
+	g := grpc.NewServer()
+	pb.RegisterScheduleOrderPushServer(g, s)
+	s.logInfo.Println("Schedule Order Push server registered")
+	if err = g.Serve(lis); err != nil {
+		log.Fatalf("Failed to server %v", err)
 	}
 }
 
-func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		s.logError.Println("serveWs: ", err)
-		return
+func NewScheduler() *Scheduler {
+	return &Scheduler{
+		orderMap: make(map[string]*pb.Order),
+		logInfo:  log.New(os.Stdout, "INFO:Scheduler:", log.Ldate|log.Ltime),
+		logError: log.New(os.Stdout, "ERROR:Scheduler:", log.Ldate|log.Ltime),
 	}
-	client := MakeClient(s.Hub, conn)
-	client.Hub.Register(client)
-	go client.WritePump()
-	go client.ReadPump()
 }

@@ -1,18 +1,19 @@
 package srfh
 
 import (
+	"context"
 	"fmt"
-	"github.com/8bitstout/orderPushScheduler"
-	pb "github.com/8bitstout/orderPushScheduler/proto"
-	"github.com/golang/protobuf/proto"
-	"github.com/gorilla/websocket"
+	pb "github.com/8bitstout/orderPushScheduler/order"
+	"google.golang.org/grpc"
 	"log"
 	"net/url"
+	"time"
 )
 
 type Client struct {
+	pb.ScheduleOrderPushClient
 	URL  *url.URL
-	conn *websocket.Conn
+	conn *grpc.ClientConn
 }
 
 func MakeClient(u string) *Client {
@@ -21,48 +22,26 @@ func MakeClient(u string) *Client {
 		URL: parsedURL,
 	}
 	fmt.Println("Client connecting to:", parsedURL.String())
-	conn, _, err := websocket.DefaultDialer.Dial(parsedURL.String(), nil)
+	conn, err := grpc.Dial(parsedURL.String(), grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatal(err)
 	}
 	c.conn = conn
+	//defer conn.Close()
 	return c
 }
 
-func (c *Client) ListenForMessages() {
-	go func() {
-		for {
-			msgType, msg, err := c.conn.ReadMessage()
-			if err != nil {
-				log.Println(err)
-			}
-			if msgType == websocket.TextMessage {
-				fmt.Println(string(msg))
-			}
-			if msgType == websocket.BinaryMessage {
-				order := &pb.Order{}
-				proto.Unmarshal(msg, order)
-				fmt.Println("Received order ", order.Id, "created at", order.CreatedAt)
-			}
-		}
-	}()
-}
-
-func (c *Client) WriteMessage(m []byte) {
-	fmt.Println("Writing message to:", c.conn.RemoteAddr().String())
-	err := c.conn.WriteMessage(websocket.BinaryMessage, m)
-	if err != nil {
-		log.Println(err)
+func (c *Client) Schedule() {
+	order := &pb.Order{
+		Id: "10",
 	}
-}
-
-func (c *Client) SendNewOrder() {
-	order := orderPushScheduler.MakeOrder(10)
 	fmt.Println("New Order: ", order.String())
-	message, err := proto.Marshal(order)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	cli := pb.NewScheduleOrderPushClient(c.conn)
+	r, err := cli.SchedulePushNotification(ctx, order)
 	if err != nil {
-		log.Panic(err)
+		fmt.Println(err)
 	}
-	fmt.Println(message)
-	c.WriteMessage(message)
+	fmt.Println(r)
 }

@@ -1,8 +1,8 @@
-package orderPushScheduler
+package ws
 
 import (
 	"fmt"
-	pb "github.com/8bitstout/orderPushScheduler/proto"
+	pb "github.com/8bitstout/orderPushScheduler/order"
 	"github.com/8bitstout/orderPushScheduler/push2device"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
@@ -108,7 +108,7 @@ func (c *Client) WritePump() {
 			if err != nil {
 				c.logError.Println("Error unmarshalling protobuf:", err)
 			}
-			c.push2device.CreateOrderPush(&order)
+			c.push2device.CreatePushNotification(order.GetId())
 
 			// Add queued message to the current websocket message
 			n := len(c.send)

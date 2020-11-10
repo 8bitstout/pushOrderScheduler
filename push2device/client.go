@@ -2,8 +2,6 @@ package push2device
 
 import (
 	"fmt"
-	pb "github.com/8bitstout/orderPushScheduler/proto"
-	"github.com/golang/protobuf/jsonpb"
 	"net/http"
 	"sync"
 )
@@ -13,10 +11,11 @@ type Push2Device struct {
 	client   *http.Client
 }
 
-func (p *Push2Device) CreateOrderPush(pushOrder *pb.Order) {
-	m := jsonpb.Marshaler{EmitDefaults: true}
-	j, _ := m.MarshalToString(pushOrder)
-	//r, _ := http.NewRequest("POST", "endpoint", bytes.NewBuffer([]byte(j)))
-	//p.client.Do(r)
-	fmt.Println("Creating push2device request: ", j)
+func (p *Push2Device) CreatePushNotification(orderId string) error {
+	fmt.Println("Order", orderId, "push notification registered")
+	return nil
+}
+
+func MakePush2DeviceClient() *Push2Device {
+	return &Push2Device{}
 }

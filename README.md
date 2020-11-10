@@ -7,3 +7,7 @@ ORDER_CREATION_SERVICE -> OrderPushScheduler -> PUSH_TO_DEVICE_SERVICE
 
 ## Architecture
 OrderPushSceduler uses Protobuf for network messages and gRPC for message streaming.
+
+## Service Definitions
+### ScheduleOrderMessage
+Receive an order and schedule a push notification using order details.
