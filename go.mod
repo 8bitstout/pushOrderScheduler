@@ -3,6 +3,7 @@ module github.com/8bitstout/orderPushScheduler
 go 1.13
 
 require (
+	github.com/dgraph-io/badger/v2 v2.2007.2
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/golang/protobuf v1.4.3
 	github.com/gorilla/websocket v1.4.2
